@@ -1,4 +1,4 @@
-🐍 Snake Game em Python com Pygame
+**🐍 Snake Game em Python com Pygame
 Um simples e divertido jogo da cobrinha (Snake) desenvolvido em Python usando a biblioteca Pygame.
 🎮 Como Jogar
 Controle a cobrinha com as setas do teclado:
