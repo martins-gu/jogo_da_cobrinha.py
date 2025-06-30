@@ -1,6 +1,56 @@
-import pygame, random, sys, os
+import pygame
+import random
+import sys
+import os
+import wave
+import struct
+import math
 
+# Sons automáticos
+def criar_som_comer():
+    if not os.path.exists("comer.wav"):
+        framerate = 44100
+        duration = 0.2
+        freq = 700.0
+        wav = wave.open("comer.wav", "w")
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(framerate)
+        for i in range(int(duration * framerate)):
+            value = int(32767.0 * 0.5 * math.sin(2 * math.pi * freq * i / framerate))
+            wav.writeframes(struct.pack('<h', value))
+        wav.close()
+
+def criar_som_morte():
+    if not os.path.exists("morte.wav"):
+        framerate = 44100
+        duration = 0.4
+        start_freq = 600.0
+        end_freq = 100.0
+        wav = wave.open("morte.wav", "w")
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(framerate)
+        for i in range(int(duration * framerate)):
+            freq = start_freq + (end_freq - start_freq) * (i / (duration * framerate))
+            value = int(32767.0 * 0.5 * math.sin(2 * math.pi * freq * i / framerate))
+            wav.writeframes(struct.pack('<h', value))
+        wav.close()
+
+criar_som_comer()
+criar_som_morte()
+
+# Inicialização
 pygame.init()
+try:
+    pygame.mixer.init()
+    som_comida = pygame.mixer.Sound("comer.wav")
+    som_morte = pygame.mixer.Sound("morte.wav")
+except pygame.error:
+    print("Erro ao carregar sons.")
+    som_comida = None
+    som_morte = None
+
 largura, altura = 800, 500
 tela = pygame.display.set_mode((largura, altura))
 pygame.display.set_caption("Snake Game")
@@ -10,13 +60,19 @@ tamanho = 10
 
 def carregar_high_score():
     if os.path.exists("highscore.txt"):
-        with open("highscore.txt", "r") as f:
-            return int(f.read())
+        try:
+            with open("highscore.txt", "r") as f:
+                return int(f.read())
+        except:
+            return 0
     return 0
 
 def salvar_high_score(pontos):
-    with open("highscore.txt", "w") as f:
-        f.write(str(pontos))
+    try:
+        with open("highscore.txt", "w") as f:
+            f.write(str(pontos))
+    except:
+        pass
 
 def desenhar_texto(msg, y, cor=(255, 255, 255)):
     texto = fonte.render(msg, True, cor)
@@ -55,10 +111,8 @@ def tela_game_over(pontos, recorde):
                     return "sair"
 
 def main():
-    x = largura // 2
-    y = altura // 2
-    vel_x = tamanho
-    vel_y = 0
+    x, y = largura // 2, altura // 2
+    vel_x, vel_y = tamanho, 0
     cobra = [[x, y]]
     comida = [random.randrange(0, largura // tamanho) * tamanho,
               random.randrange(0, altura // tamanho) * tamanho]
@@ -82,25 +136,44 @@ def main():
         x += vel_x
         y += vel_y
 
-        if (x < 0 or x >= largura or y < 0 or y >= altura or [x, y] in cobra):
+        if x < 0 or x >= largura or y < 0 or y >= altura or [x, y] in cobra:
+            if som_morte:
+                som_morte.play()
             if pontos > recorde:
                 salvar_high_score(pontos)
             return tela_game_over(pontos, max(pontos, recorde))
 
         cobra.insert(0, [x, y])
-        if x == comida[0] and y == comida[1]:
+        if [x, y] == comida:
             pontos += 1
+            if som_comida:
+                som_comida.play()
             comida = [random.randrange(0, largura // tamanho) * tamanho,
                       random.randrange(0, altura // tamanho) * tamanho]
         else:
             cobra.pop()
 
+        # Fundo com grade estilo arcade
         tela.fill((0, 0, 0))
-        pygame.draw.rect(tela, (255, 0, 0), (*comida, tamanho, tamanho))
-        for seg in cobra:
-            pygame.draw.rect(tela, (0, 255, 0), (*seg, tamanho, tamanho))
+        for i in range(0, largura, tamanho):
+            pygame.draw.line(tela, (30, 30, 30), (i, 0), (i, altura))
+        for j in range(0, altura, tamanho):
+            pygame.draw.line(tela, (30, 30, 30), (0, j), (largura, j))
 
-        desenhar_texto(f"Pontos: {pontos}", 20)
+        # Comida com brilho
+        sombra_comida = (comida[0] + 2, comida[1] + 2)
+        pygame.draw.rect(tela, (50, 10, 50), (*sombra_comida, tamanho, tamanho))
+        pygame.draw.rect(tela, (255, 0, 180), (*comida, tamanho, tamanho))
+        pygame.draw.rect(tela, (255, 100, 200), (*comida, tamanho, tamanho), width=1)
+
+        # Cobra com sombra e contorno
+        for seg in cobra:
+            sombra = (seg[0] + 2, seg[1] + 2)
+            pygame.draw.rect(tela, (10, 40, 10), (*sombra, tamanho, tamanho))
+            pygame.draw.rect(tela, (0, 255, 100), (*seg, tamanho, tamanho))
+            pygame.draw.rect(tela, (0, 150, 100), (*seg, tamanho, tamanho), width=1)
+
+        desenhar_texto(f"Pontos: {pontos}", 20, (0, 200, 255))
         pygame.display.update()
         relogio.tick(15)
 
